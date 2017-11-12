@@ -10,15 +10,18 @@ $dbuser = "zagent";
 $dbpassword = "f46hd35g";
 $dbname = "retail";
 
-$link = mysql_connect($dbhost, $dbuser, $dbpassword);
-mysql_query("set character set utf8", $link);
-mysql_query("set names utf8", $link);
-mysql_select_db($dbname, $link);
+$link = mysqli_connect($dbhost, $dbuser, $dbpassword, $dbname);
+if (!$link) { 
+    header('Location: error.php?code=3', true, 303); 
+    die('Connect Error: ' . mysqli_connect_error());
+    }
+mysqli_query($link,"set character set utf8");
+mysqli_query($link,"set names utf8");
 
 if (strlen($_REQUEST['jti']) > 0) {
-    $users = mysql_fetch_array(mysql_query("select email,jti from test_users where jti='" . mysql_escape_string($_REQUEST['jti']) . "'", $link));
+    $users = mysqli_fetch_array(mysqli_query($link, "select email,jti from test_users where jti='" . mysqli_escape_string($link, $_REQUEST['jti']) . "'"));
     if (strlen($users['jti']) > 0) {
-        mysql_query("update test_users set validation='1' where jti='" . $users['jti'] . "';", $link);
+        mysqli_query($link, "update test_users set validation='1' where jti='" . $users['jti'] . "';");
         echo get_token($users['email'], $users['jti']);
     } else {
         header('Location: error.php?code=0', true, 303);
@@ -26,21 +29,21 @@ if (strlen($_REQUEST['jti']) > 0) {
 }
 
 if ($_REQUEST['fn'] == "registration") {
-    $email = mysql_escape_string($_POST['email']);
-    $name = mysql_escape_string($_POST['name']);
-    $password = mysql_escape_string($_POST['password']);
+    $email = mysqli_escape_string($link, $_POST['email']);
+    $name = mysqli_escape_string($link, $_POST['name']);
+    $password = mysqli_escape_string($link, $_POST['password']);
     $jti = md5(uniqid(rand(), true));
     mail($email, "Регистрация на тестовом сервисе", "Для подтверждения регистрации перейдите по ссылке http://pashkoff.net/jwt/auth.php?jti=" . $jti,
         "From: noreplay@pashkoff.net \r\n"
         . "X-Mailer: PHP/" . phpversion());
-    mysql_query("insert into test_users set email='" . $email . "', name='" . $name . "', password=md5('" . $password . "'), jti='" . $jti . "';", $link);
+    mysqli_query($link, "insert into test_users set email='" . $email . "', name='" . $name . "', password=md5('" . $password . "'), jti='" . $jti . "';");
     header('Location: confirmation.php', true, 303);
 }
 
 if ($_REQUEST['fn'] == "autorisation") {
-    $email = mysql_escape_string($_POST['email']);
-    $password = mysql_escape_string($_POST['password']);
-    $users = mysql_fetch_array(mysql_query("select jti from test_users where email='$email' and password=md5('" . $password . "') and validation='1';", $link));
+    $email = mysqli_escape_string($link, $_POST['email']);
+    $password = mysqli_escape_string($link, $_POST['password']);
+    $users = mysqli_fetch_array(mysqli_query($link, "select jti from test_users where email='$email' and password=md5('" . $password . "') and validation='1';"));
     if (strlen($users['jti']) > 0) {
         echo get_token($email, $users['jti']);
     } else {
@@ -49,10 +52,10 @@ if ($_REQUEST['fn'] == "autorisation") {
 }
 
 if ($_REQUEST['fn'] == "info") {
-    $token = mysql_escape_string($_POST['token']);
+    $token = mysqli_escape_string($link, $_POST['token']);
     $jti = get_jti($token);
     if (strlen($jti) > 0) {
-        $users = mysql_fetch_array(mysql_query("select email,name from test_users where jti='$jti';", $link));
+        $users = mysqli_fetch_array(mysqli_query($link, "select email,name from test_users where jti='$jti';"));
         if (strlen($users['email']) > 0) {
             echo json_encode(['name' => $users['name'], 'email' => $users['email']]);
         } else {
@@ -64,13 +67,13 @@ if ($_REQUEST['fn'] == "info") {
 }
 
 if ($_REQUEST['fn'] == "newname") {
-    $token = mysql_escape_string($_POST['token']);
-    $newname = mysql_escape_string($_POST['newname']);
+    $token = mysqli_escape_string($link, $_POST['token']);
+    $newname = mysqli_escape_string($link, $_POST['newname']);
     $jti = get_jti($token);
     if (strlen($jti) > 0) {
-        $users = mysql_fetch_array(mysql_query("select email,name from test_users where jti='$jti';", $link));
+        $users = mysqli_fetch_array(mysqli_query($link, "select email,name from test_users where jti='$jti';"));
         if (strlen($users['email']) > 0) {
-            mysql_query("update test_users set name='$newname' where jti='" . $jti . "';", $link);
+            mysqli_query($link, "update test_users set name='$newname' where jti='" . $jti . "';");
             echo json_encode(['name' => $newname, 'email' => $users['email']]);
         } else {
             header('Location: error.php?code=2', true, 303);
@@ -80,7 +83,7 @@ if ($_REQUEST['fn'] == "newname") {
     }
 }
 
-mysql_close($link);
+mysqli_close($link);
 
 function get_token($email, $jti)
 {
@@ -99,7 +102,7 @@ function get_token($email, $jti)
 function get_jti($token)
 {
     try {
-        $token = (new Parser())->parse((string)$token);
+        $token = (new Parser())->parse($token);
     } catch (Exception $e) {
         return "";
     }
