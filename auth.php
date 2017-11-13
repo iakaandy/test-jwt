@@ -32,10 +32,27 @@ if ($_REQUEST['fn'] == "registration") {
     $email = mysqli_escape_string($link, $_POST['email']);
     $name = mysqli_escape_string($link, $_POST['name']);
     $password = mysqli_escape_string($link, $_POST['password']);
+    $users = mysqli_fetch_array(mysqli_query($link, "select jti from test_users where email='$email'"));
+    if (strlen($users['jti'])>0) {
+	header('Location: error.php?code=4', true, 303);
+	die('email is already registered');
+	}
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+	header('Location: error.php?code=5', true, 303);
+	die('email incorrect');
+	}
+    if (strlen($name)==0) {
+	header('Location: error.php?code=6', true, 303);
+	die('name incorrect');
+	}
+    if (strlen($password)<3) {
+	header('Location: error.php?code=7', true, 303);
+	die('password incorrect');
+	}
     $jti = md5(uniqid(rand(), true));
     mail($email, "Регистрация на тестовом сервисе", "Для подтверждения регистрации перейдите по ссылке http://pashkoff.net/jwt/auth.php?jti=" . $jti,
-        "From: noreplay@pashkoff.net \r\n"
-        . "X-Mailer: PHP/" . phpversion());
+    	    "From: noreplay@pashkoff.net \r\n"
+    	    . "X-Mailer: PHP/" . phpversion());
     mysqli_query($link, "insert into test_users set email='" . $email . "', name='" . $name . "', password=md5('" . $password . "'), jti='" . $jti . "';");
     header('Location: confirmation.php', true, 303);
 }
